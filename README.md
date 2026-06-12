@@ -12,6 +12,10 @@ those specific failures.
   is dominated by *numeric exact-match grading*, *undocumented analyst choices*,
   and an *R-vs-Python ecosystem gap* — so much of the loss is correct analysis
   scored wrong, not failed analysis.
+- **[`docs/TASK_TYPES.md`](docs/TASK_TYPES.md)** — the task-type taxonomy: it's
+  one benchmark (agentic data analysis), not separate "Q&A" vs "code-running"
+  benchmarks, varying along six measured axes (regime, format, grading, answer
+  type, domain, ecosystem).
 - **[`docs/DESIGN.md`](docs/DESIGN.md)** — the architecture that targets each
   failure, in ROI order, with an experiment plan and per-grading-bucket strategy.
 
