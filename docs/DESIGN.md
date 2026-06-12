@@ -56,12 +56,16 @@ Bioconductor packages, common bioinformatics CLIs, and Python — and let the
 analyst **choose the ecosystem the task implies**. Pin versions toward those the
 dataset era used where known.
 
-### 2. Capsule EDA → data manifest (amortize, don't repeat)
-Current BixBench code re-explores per question. Instead, run one EDA pass per
-`capsule_uuid`: file inventory, column schemas, sample/group counts, likely
-joins, and modality (counts matrix? VCF? images?). Cache as a manifest reused by
-every question in the capsule → cheaper and **consistent** across the 4–5 shared
-questions.
+### 2. Capsule EDA → data manifest (amortize, don't repeat) — IMPLEMENTED
+Built in `genie/eda.py` (tested in `tests/test_eda.py`). One deterministic pass
+per `capsule_uuid`: file inventory, robust delimiter handling, true row counts,
+role detection (expression matrix / metadata / annotation / variants / sequence
+/ image), low-cardinality **group counts** (the experiment design), and
+**value-based joins**. On the real RNA-seq capsule it auto-surfaces the design
+(Control=11 / ASXL1=8, sex F=11 / M=8) **and the two silently-dropped samples**
+(`MGD1640B`, `MGD1641B`) — i.e. it hands the agent the exact judgment call that
+FINDINGS §4 flagged as otherwise unrecoverable. Cache the manifest and reuse it
+across the capsule's 4–5 questions.
 
 ### 3. Standard-pipeline prior ("conventional analyst")
 The reference answers come from domain experts using **standard workflows with
@@ -71,11 +75,12 @@ templates (RNA-seq DE→GO, differential abundance, logistic/ordinal regression,
 survival, variant filtering) the analyst adapts rather than inventing. This is
 the main lever against **method divergence**.
 
-### 4. Answer-shape router
-The agent never sees `eval_mode`, but it can infer the *target shape* from the
-question (and, for MCQ, the options): precise-number vs statistical-estimate vs
-categorical/descriptive vs conceptual. The route sets the analysis depth, the
-sensitivity strategy, and the formatter behavior.
+### 4. Answer-shape router — IMPLEMENTED
+Built in `genie/router.py` (tested in `tests/test_router.py`). Infers the target
+shape from the question and any MCQ options — p-value / estimate / count /
+categorical / boolean / descriptive — and returns the representation
+(scientific / decimal / integer / text), suggested sig figs, and a per-shape
+strategy. This sets analysis depth, sensitivity strategy, and formatter behavior.
 
 ### 5. Multi-method consistency + sensitivity (not temperature voting)
 The paper showed 10× sampling didn't help — errors are correlated. Instead run

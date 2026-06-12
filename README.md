@@ -29,10 +29,15 @@ python analysis/attribute_failures.py --demo # failure-attribution harness (Phas
 
 ## What's built
 
-- **`genie/answer.py`** — the first agent component (DESIGN.md §7): faithful
-  grader replicas, representation matching, nearest-option MCQ snapping, and a
-  no-refuse answering policy. Tested in `tests/` (`python -m pytest`).
+- **`genie/answer.py`** (DESIGN §7) — faithful grader replicas, representation
+  matching, nearest-option MCQ snapping, no-refuse policy.
+- **`genie/eda.py`** (DESIGN §2) — capsule data-manifest builder. On the real
+  RNA-seq capsule it auto-detects the design and the **two silently-dropped
+  samples** the canonical pipeline removes (`python -m genie.eda <capsule_dir>`).
+- **`genie/router.py`** (DESIGN §4) — answer-shape router (p-value / estimate /
+  count / categorical / boolean) → representation + strategy.
 - **`analysis/`** — reproducible evidence + the Phase-1 attribution harness.
+- **`tests/`** — 37 tests (`python -m pytest`).
 
 Measured payoff of the answer module (`grading_sensitivity.py`, on real
 targets/distractors): an analysis within 5% of the truth scores **2% on MCQ with

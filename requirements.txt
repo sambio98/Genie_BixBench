@@ -1,4 +1,6 @@
-# Analysis / evidence-reproduction dependencies.
-# (Agent runtime deps will be added in Phase 2 — see docs/DESIGN.md.)
+# Analysis / evidence-reproduction + agent-component dependencies.
 datasets>=2.18
 huggingface_hub>=0.21
+pandas>=2.0
+openpyxl>=3.1     # read .xlsx sample-metadata files
+pytest>=8.0       # tests
