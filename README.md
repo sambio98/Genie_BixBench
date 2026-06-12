@@ -23,7 +23,21 @@ pip install -r requirements.txt
 python analysis/profile_dataset.py          # dataset structure, eval_mode mix, answer shapes
 python analysis/measure_recall_baseline.py  # the "no-notebook" recall ceiling
 python analysis/inspect_capsule.py          # ground-truth notebook + its hidden choices
+python analysis/grading_sensitivity.py      # how much the answer module recovers (sim)
+python analysis/attribute_failures.py --demo # failure-attribution harness (Phase 1)
 ```
+
+## What's built
+
+- **`genie/answer.py`** — the first agent component (DESIGN.md §7): faithful
+  grader replicas, representation matching, nearest-option MCQ snapping, and a
+  no-refuse answering policy. Tested in `tests/` (`python -m pytest`).
+- **`analysis/`** — reproducible evidence + the Phase-1 attribution harness.
+
+Measured payoff of the answer module (`grading_sensitivity.py`, on real
+targets/distractors): an analysis within 5% of the truth scores **2% on MCQ with
+naive exact-match vs 94% with nearest-option snapping**; and even an *exact* value
+expressed naturally clears `str_verifier` only ~33% of the time.
 
 ## The findings in one table
 

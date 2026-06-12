@@ -94,7 +94,14 @@ cell outputs**, checks units/sign/magnitude plausibility, and rejects any answer
 not traceable to a computed result. This forces gains to come from analysis, so
 they survive comparison to the ~34% MCQ / ~11% open recall baselines.
 
-### 7. Formatter + answering policy (cheapest, do first)
+### 7. Formatter + answering policy (cheapest, do first) — IMPLEMENTED
+Built in `genie/answer.py` (tested in `tests/test_answer.py`). Measured on real
+targets/distractors by `analysis/grading_sensitivity.py`:
+- A value within **5%** of truth scores **2% (naive exact-match) vs 94%
+  (nearest-option)** on MCQ; **82%** even at 10% error.
+- An *exact* value expressed naturally passes `str_verifier` only **~33%** of the
+  time — confirming representation, not analysis, is the binding constraint here.
+
 - **Representation:** emit the number in the form the question implies — sig
   figs, decimal vs scientific — and, where ambiguous, the most conventional form.
 - **MCQ:** compute the estimate, then **snap to the nearest option** by numeric
