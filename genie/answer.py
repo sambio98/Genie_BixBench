@@ -119,6 +119,24 @@ def _sig_figs(num_str: str) -> int:
     return max(len(digits), 1)
 
 
+def format_numeric(value: float, representation: str = "decimal", sig_figs: int = 3) -> str:
+    """Format a number per an explicit representation (scientific/decimal/integer).
+
+    Shared by the MCQ formatter and the open-ended path so the agent emits the
+    representation the question implies.
+    """
+    if value is None:
+        return ""
+    if representation == "integer":
+        return str(int(round(value)))
+    if value == 0:
+        return "0"
+    if representation == "scientific":
+        return f"{value:.{max(sig_figs - 1, 0)}e}"
+    digits = sig_figs - 1 - math.floor(math.log10(abs(value)))
+    return f"{value:.{max(digits, 0)}f}"
+
+
 def format_like_options(value: float, options: list[str]) -> str:
     """Format `value` to match the style (sci/decimal + sig figs) of the options.
 
@@ -129,13 +147,7 @@ def format_like_options(value: float, options: list[str]) -> str:
     use_sci = sum(1 for o in nums if re.search(r"[eE]", o)) > len(nums) / 2 if nums else False
     figs = sorted(_sig_figs(o) for o in nums) if nums else [3]
     sig = figs[len(figs) // 2]  # median sig figs of the options
-    if value == 0:
-        return "0"
-    if use_sci:
-        return f"{value:.{max(sig - 1, 0)}e}"
-    # decimal, rounded to `sig` significant figures
-    digits = sig - 1 - math.floor(math.log10(abs(value)))
-    return f"{value:.{max(digits, 0)}f}"
+    return format_numeric(value, "scientific" if use_sci else "decimal", sig)
 
 
 def snap_to_nearest_option(value: float, options: list[str]) -> str | None:

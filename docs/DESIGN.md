@@ -45,6 +45,16 @@ over-refusal. So we spend effort where points are recoverable.
                        └────────────────────────┘   └───────────────────┘
 ```
 
+## Orchestration — IMPLEMENTED
+
+`genie/solve.py` wires the components into one loop: `route → (capsule manifest,
+cached per `capsule_uuid`) → Analyst.analyze → verify → answer policy`. The
+`Analyst` is a swappable `Protocol`, so the only piece needing an LLM + notebook
+sandbox is isolated behind one interface; everything around it is pure and
+tested. `python -m genie.solve` runs the whole assembly with a test analyst and
+reproduces the nearest-option result end-to-end (100/94/82% at 0/5/10% analysis
+error). The remaining work is the real `LLMAnalyst` (Phase 2) — same signature.
+
 ## Components
 
 ### 1. Environment parity (R + Bioconductor + CLI)

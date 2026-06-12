@@ -36,8 +36,14 @@ python analysis/attribute_failures.py --demo # failure-attribution harness (Phas
   samples** the canonical pipeline removes (`python -m genie.eda <capsule_dir>`).
 - **`genie/router.py`** (DESIGN §4) — answer-shape router (p-value / estimate /
   count / categorical / boolean) → representation + strategy.
+- **`genie/solve.py`** — the end-to-end runner that assembles them:
+  `route → (cached capsule manifest) → Analyst → verify → answer policy`. The
+  `Analyst` is a pluggable Protocol; a real LLM+notebook analyst drops in behind
+  the same interface. `python -m genie.solve` drives the whole loop with a test
+  analyst and reproduces the nearest-option win end-to-end (100/94/82% at
+  0/5/10% analysis error).
 - **`analysis/`** — reproducible evidence + the Phase-1 attribution harness.
-- **`tests/`** — 37 tests (`python -m pytest`).
+- **`tests/`** — 47 tests (`python -m pytest`).
 
 Measured payoff of the answer module (`grading_sensitivity.py`, on real
 targets/distractors): an analysis within 5% of the truth scores **2% on MCQ with
