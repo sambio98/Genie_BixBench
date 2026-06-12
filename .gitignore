@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+# downloaded capsule data / HF cache
+data/
+caps/
+*.zip
+.ipynb_checkpoints/

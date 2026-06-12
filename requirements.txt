@@ -1,0 +1,4 @@
+# Analysis / evidence-reproduction dependencies.
+# (Agent runtime deps will be added in Phase 2 — see docs/DESIGN.md.)
+datasets>=2.18
+huggingface_hub>=0.21
