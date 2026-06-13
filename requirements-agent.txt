@@ -1,0 +1,52 @@
+# Python libraries the agent needs for the non-R BixBench scope (67 Python qs).
+# Derived from the reference notebooks by analysis/scan_requirements.py.
+# CLI bioinformatics tools are NOT here (pip can't install them) -> environment.yml.
+
+# core data + stats
+pandas
+numpy
+scipy
+statsmodels
+scikit-learn
+
+# visualization
+matplotlib
+seaborn
+matplotlib-venn
+upsetplot
+altair
+
+# omics: differential expression + functional enrichment
+pydeseq2
+gseapy
+gprofiler-official
+mygene
+
+# single-cell
+scanpy
+anndata
+
+# machine learning extras
+xgboost
+optuna
+optuna-integration
+
+# sequence / alignment / variant parsing in Python (for the CLI-scope formats)
+biopython
+pysam
+
+# web / API clients
+requests
+chembl-webresource-client
+
+# IO + utilities
+openpyxl
+xlrd
+h5py
+tables
+tqdm
+
+# notebook execution
+jupyter
+ipykernel
+nbformat

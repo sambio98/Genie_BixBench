@@ -16,6 +16,9 @@ those specific failures.
   one benchmark (agentic data analysis), not separate "Q&A" vs "code-running"
   benchmarks, varying along six measured axes (regime, format, grading, answer
   type, domain, ecosystem).
+- **[`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md)** — the agent's required
+  libraries & capabilities for the Python + command-line scope (124/205 qs):
+  pip set (`requirements-agent.txt`) + bioconda CLI tools (`environment.yml`).
 - **[`docs/DESIGN.md`](docs/DESIGN.md)** — the architecture that targets each
   failure, in ROI order, with an experiment plan and per-grading-bucket strategy.
 

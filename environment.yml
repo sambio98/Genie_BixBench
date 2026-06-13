@@ -1,0 +1,72 @@
+# Full agent runtime for the non-R BixBench scope (124/205 questions):
+# Python omics libraries + command-line bioinformatics tools.
+# Derived from the reference capsules by analysis/scan_requirements.py; see
+# docs/ENVIRONMENT.md. Create with:  conda env create -f environment.yml
+name: genie-bixbench
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  # --- core python / data / stats ---
+  - pandas
+  - numpy
+  - scipy
+  - statsmodels
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  # --- IO + notebook execution ---
+  - jupyter
+  - ipykernel
+  - nbformat
+  - openpyxl
+  - xlrd
+  - h5py
+  - pytables
+  - requests
+  - tqdm
+  # --- sequence / alignment parsing in Python ---
+  - biopython
+  - pysam
+  # --- command-line: phylogenetics / comparative genomics ---
+  - busco
+  - phykit
+  - clipkit
+  - mafft
+  - muscle
+  - iqtree
+  - fasttree
+  - hmmer
+  - seqkit
+  # --- command-line: read alignment & variant calling / WGS ---
+  - bwa
+  - bowtie2
+  - samtools
+  - bcftools
+  - gatk4
+  - picard
+  - bedtools
+  - vcftools
+  - trimmomatic
+  - fastqc
+  - fastp
+  # --- general CLI utilities ---
+  - wget
+  - curl
+  # --- pip-only omics packages ---
+  - pip
+  - pip:
+      - pydeseq2
+      - gseapy
+      - gprofiler-official
+      - mygene
+      - scanpy
+      - anndata
+      - matplotlib-venn
+      - upsetplot
+      - altair
+      - xgboost
+      - optuna
+      - optuna-integration
+      - chembl-webresource-client
