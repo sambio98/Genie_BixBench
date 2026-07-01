@@ -9,3 +9,6 @@ data/
 caps/
 *.zip
 .ipynb_checkpoints/
+# ibf_eval: downloaded BixBench capsule data + per-run workspaces (large,
+# regenerable via select_questions.py -- not source, don't commit)
+ibf_eval/workspace*/
