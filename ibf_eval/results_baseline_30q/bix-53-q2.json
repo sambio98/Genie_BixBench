@@ -1,0 +1,1 @@
+{"question_id":"bix-53-q2","eval_mode":"llm_verifier","ideal":"Increases the number of differentially expressed genes","solution":"increases from 1428 to 1916 (+34.2%)","correct":true,"note":"RECOVERED after nudge; underlying computation had already succeeded"}

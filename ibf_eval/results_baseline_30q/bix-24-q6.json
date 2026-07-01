@@ -1,0 +1,1 @@
+{"question_id":"bix-24-q6","eval_mode":"llm_verifier","ideal":"Cellular response to decreased oxygen levels","solution":"Positive regulation of transcription, DNA-templated (GO:0045893)","correct":false,"note":"RECOVERED after nudge, completed a sound full analysis, but genuine mismatch on top GO term -- likely contrast/threshold divergence or enrichr API drift over time"}

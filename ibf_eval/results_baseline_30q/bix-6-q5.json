@@ -1,0 +1,1 @@
+{"question_id":"bix-6-q5","eval_mode":"str_verifier","ideal":"25%","solution":"0%","correct":false,"note":"Pipeline validated via positive control (correctly recovered a known signal), multiple variants tested consistently. Likely genuine threshold-definition divergence (BH-adjusted vs nominal p-value) from reference."}

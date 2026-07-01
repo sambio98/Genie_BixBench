@@ -1,0 +1,1 @@
+{"question_id":"bix-22-q4","eval_mode":"range_verifier","ideal":"(0.015,0.025)","solution":"0.0317","correct":false,"note":"near-miss, same gene-length-vs-expression correlation family as bix-22-q6"}

@@ -1,0 +1,1 @@
+{"question_id":"bix-36-q4","eval_mode":"range_verifier","ideal":"(0.55,0.59)","solution":"0.194","correct":false,"note":"real gap, likely method-divergence in aggregation (mean vs median, or feature filtering choice)"}

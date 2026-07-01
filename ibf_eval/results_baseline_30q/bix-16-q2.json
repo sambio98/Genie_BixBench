@@ -1,0 +1,1 @@
+{"question_id":"bix-16-q2","eval_mode":"llm_verifier","ideal":"Right-skewed with a long tail","solution":"right (positive) skew, coefficient ~0.69, long tail toward higher expression","correct":true}

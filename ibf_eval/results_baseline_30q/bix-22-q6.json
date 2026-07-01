@@ -1,0 +1,1 @@
+{"question_id":"bix-22-q6","eval_mode":"range_verifier","ideal":"(0.3,0.4)","solution":"0.05","correct":false,"note":"agent avoided log-transform on principle; field-standard for gene-length-bias correlation is log-space"}

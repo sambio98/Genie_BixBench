@@ -1,0 +1,1 @@
+{"question_id":"bix-25-q4","eval_mode":"llm_verifier","ideal":"0.21","solution":"0.4174","correct":false,"note":"Thorough methodology, independently CLI-verified, but ~2x gap. Likely ambiguity: gap% measured on raw alignment vs trimmed alignment could select a different qualifying gene set."}

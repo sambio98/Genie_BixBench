@@ -1,0 +1,8 @@
+[
+  {"question_id":"bix-4-q1","eval_mode":"llm_verifier","ideal":"57%","solution":"57%","correct":true,"note":"Recognized and reused existing IQ-TREE trees; built fresh trees only for the few orthologs lacking one"},
+  {"question_id":"bix-53-q6","eval_mode":"llm_verifier","ideal":"Leishmaniasis","solution":"Malaria","correct":false,"note":"Correct pydeseq2->gseapy pipeline; landed on 2nd-ranked pathway (p=1.27e-09) right behind reference's 1st (p=6.73e-10)"},
+  {"question_id":"bix-27-q2","eval_mode":"range_verifier","ideal":"(160,180)","solution":"42","correct":false,"note":"Corrected harness (raw question text). Right scale/metric this time, but used a strict 100%-agreement-across-all-appearances threshold; reference likely used a looser consistency definition"},
+  {"question_id":"bix-6-q3","eval_mode":"str_verifier","ideal":"0","solution":"0","correct":true,"note":"73 tool calls, tested all 10 possible 3-way comparison groupings across 3 independent methodologies, all converged on 0"},
+  {"question_id":"bix-61-q1","eval_mode":"llm_verifier","ideal":"344895","solution":"4456","correct":false,"note":"Corrected harness (raw question text, full 5-step Trimmomatic reimplementation). ~77x gap -- likely reference used full (non-subsampled) FASTQ or a different discard definition"},
+  {"question_id":"bix-42-q2","eval_mode":"llm_verifier","ideal":"Highly right-skewed","solution":"Highly right-skewed (skewness ~42.4)","correct":true,"note":"Corrected harness (removed invented log2-transform requirement); flipped from FAIL to PASS -- was a pure harness bug, not a real capability gap"}
+]

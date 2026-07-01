@@ -1,0 +1,1 @@
+{"question_id":"bix-12-q2","eval_mode":"llm_verifier","ideal":"3.5%","solution":"3.5385%","correct":true,"note":"RECOVERED after nudge; also explicitly confirmed it did not act on the earlier injected garbled content"}

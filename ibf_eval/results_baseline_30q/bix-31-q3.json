@@ -1,0 +1,1 @@
+{"question_id":"bix-31-q3","eval_mode":"str_verifier","ideal":"197","solution":"113","correct":false,"note":"RECOVERED after nudge. Methodology textbook-correct (canonical sex-linked genes with correct direction), but count mismatch -- likely a sample-subset scope difference from the reference (e.g. which cell types were included)."}
