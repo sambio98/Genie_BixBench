@@ -366,14 +366,18 @@ nwk.write_text(run_tool("fasttree", "-lg", str(aln)).stdout)  # drop -lg / add -
 tree_length = float(run_tool("phykit", "total_tree_length", str(nwk)).stdout.strip())
 
 # Ortholog SET SCOPE for cross-group statistics (Mann-Whitney U, medians, ratios, etc.
-# across all orthologs in a group): use EVERY ortholog that has the artifact the metric
-# needs (a .treefile for tree-length/treeness/DVMC stats; an alignment for RCV/gap%
-# stats) -- do not restrict to orthologs present in ALL 4 taxa unless the SPECIFIC
-# metric you are computing is undefined/degenerate for a partial-taxa ortholog (e.g.
-# parsimony-informative-sites truly needs >=4 taxa to be non-trivial; tree-length/
-# treeness/DVMC are well-defined for a 3-taxa tree too and should include it).
-# Restricting to full-taxa orthologs when the metric doesn't require it silently
-# shrinks and reweights the sample.
+# across all orthologs in a group): use EVERY ortholog with >=2 taxa (enough to build
+# an alignment), even if the per-ortholog VALUE for a metric comes out to 0 for a
+# partial-taxa ortholog -- a 2-3 taxa ortholog's parsimony-informative-sites percentage
+# is very often exactly 0%, but that IS the correct, valid value (0% is a real fact, not
+# an undefined/missing one) and belongs in the sample. Only skip an ortholog if it has a
+# single taxon (no alignment/tree possible at all -- nothing to compute). Silently
+# restricting to full-4-taxa orthologs "because partial ones look degenerate" shrinks
+# and biases the sample away from what the reference statistic was computed over: check
+# whether your sample size is even CONSISTENT with the expected statistic (e.g. a
+# Mann-Whitney U cannot exceed n1*n2 -- if the target value exceeds n1*n2 for your
+# chosen subset, your subset is too small and you are excluding orthologs you should
+# include).
 
 # treeness / RCV -- DERIVE them with PhyKIT from a tree/alignment you already
 # have; they are NOT stored fields to grep for, and a metric you cannot compute
