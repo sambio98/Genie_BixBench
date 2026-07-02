@@ -366,18 +366,18 @@ nwk.write_text(run_tool("fasttree", "-lg", str(aln)).stdout)  # drop -lg / add -
 tree_length = float(run_tool("phykit", "total_tree_length", str(nwk)).stdout.strip())
 
 # Ortholog SET SCOPE for cross-group statistics (Mann-Whitney U, medians, ratios, etc.
-# across all orthologs in a group): use EVERY ortholog with >=2 taxa (enough to build
-# an alignment), even if the per-ortholog VALUE for a metric comes out to 0 for a
-# partial-taxa ortholog -- a 2-3 taxa ortholog's parsimony-informative-sites percentage
-# is very often exactly 0%, but that IS the correct, valid value (0% is a real fact, not
-# an undefined/missing one) and belongs in the sample. Only skip an ortholog if it has a
-# single taxon (no alignment/tree possible at all -- nothing to compute). Silently
-# restricting to full-4-taxa orthologs "because partial ones look degenerate" shrinks
-# and biases the sample away from what the reference statistic was computed over: check
-# whether your sample size is even CONSISTENT with the expected statistic (e.g. a
-# Mann-Whitney U cannot exceed n1*n2 -- if the target value exceeds n1*n2 for your
-# chosen subset, your subset is too small and you are excluding orthologs you should
-# include).
+# across all orthologs in a group): use every ortholog with >=3 taxa. Exclude BOTH
+# single-taxon orthologs (no alignment possible at all) AND 2-taxa orthologs -- a
+# 2-sequence alignment can ONLY ever score 0% parsimony-informative (mathematically
+# guaranteed, not a real measurement) and is similarly degenerate for most other
+# per-ortholog phylogenomic stats (a "tree" with 2 leaves is a single branch), so
+# including 2-taxa orthologs adds constant/trivial values that dilute the real signal.
+# A 3-taxa ortholog DOES have genuine, non-trivial variation for these metrics and
+# should be included; only exclude on genuine undefinedness (<3 taxa), never merely
+# because a value "looks small." Silently restricting further to full-4-taxa orthologs
+# also shrinks and biases the sample. Sanity-check your sample size against the
+# statistic's bounds (e.g. Mann-Whitney U cannot exceed n1*n2) -- if the expected/target
+# value exceeds n1*n2 for your chosen subset, your subset is too small.
 
 # treeness / RCV -- DERIVE them with PhyKIT from a tree/alignment you already
 # have; they are NOT stored fields to grep for, and a metric you cannot compute
