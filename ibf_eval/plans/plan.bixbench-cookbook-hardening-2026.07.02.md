@@ -247,10 +247,45 @@ now largely exhausted -- 2 clean wins, 2 technically-improved-but-insufficient, 
 new robustness fix. The remaining 15 failures are predominantly the structural
 undocumented-analyst-methodology problem (11 of 17 original fails) or deeper
 misinterpretation (`bix-31-q1`), which did not yield to this style of fix in the
-cases directly tested (`bix-3-q1`, `bix-12-q4`) despite real, careful effort. Getting
-substantially higher likely needs either the previously-deprioritized architecture-
-level changes (model-tier bump, MCQ answer-representation policy) or a fresh,
-non-cookbook angle on the method-sensitivity problem, not more cookbook cards.
+cases directly tested (`bix-3-q1`, `bix-12-q4`) despite real, careful effort.
+
+## Two more levers tested, both negative -- important, precise findings
+
+**Model-tier bump (3 cases, a stronger proxy model vs the baseline tier)**: NO
+improvement on any of the 3 remaining failures tested (`bix-53-q6`, `bix-27-q4`,
+`bix-31-q1`), including cases where the stronger model did MORE rigorous work (more
+clustering configurations, more sensitivity variants tested) yet converged on the
+SAME wrong answer. `bix-27-q4` is the clearest evidence: 3 of 5 independently-tried
+clustering methods converged on "Axon Guidance" (wrong) under the stronger model --
+this is a consistent, repeatable disagreement with the reference, not noise a
+smarter model resolves. Conclusion: raw reasoning strength is not the bottleneck for
+this failure class; do not expect a model upgrade alone to close this gap.
+
+**MCQ nearest-option snapping (retroactively tested against all 30 raw computed
+answers + their real distractor options, zero additional compute)**: **zero net
+new wins**. Every numeric question whose raw answer snaps to the correct option was
+ALREADY counted correct (the raw value already matched); every numeric question
+that's currently wrong stays wrong after snapping, because the computed VALUE is
+too far from the truth to land in the right neighborhood (e.g. `bix-31-q1`'s -0.38
+snaps to a distractor near -0.45, nowhere near the true 18.93). This is an
+important correction to an earlier-session hypothesis: nearest-option snapping only
+recovers points when the analysis is APPROXIMATELY right but differently formatted
+(a representation problem) -- none of this baseline's current failures are that;
+they are all genuinely-wrong VALUES from a different methodology, for which no
+answer-formatting trick can help. The lever is still valid in principle (and cheap
+enough to keep as a formatting safety net for future near-misses), but it is not
+the lever that moves this specific baseline's score.
+
+**Combined conclusion**: with cookbook fixes, model tier, and answer-representation
+all now empirically tested (not just proposed), the remaining ~15-question gap is
+the benchmark's core reproducibility problem -- the ground truth encodes one
+analyst's specific, undocumented methodological path among several equally
+defensible ones, and no combination of prompt engineering, model strength, or
+answer formatting available to this harness closes that gap. Meaningfully higher
+scores likely require either much deeper per-domain-family engineering (a
+prescribed canonical pipeline per analysis type, removing the agent's freedom to
+choose an equally-valid-but-different method) or accepting a ceiling on the
+exact-value-reproduction questions and optimizing elsewhere.
 
 ## Verification
 

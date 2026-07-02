@@ -1,0 +1,8 @@
+{
+  "experiment": "MCQ nearest-option snapping, tested retroactively against all 30 raw computed answers + real distractor options, zero additional agent compute",
+  "numeric_questions_tested": 18,
+  "new_wins_from_snapping": 0,
+  "already_correct_before_snapping": 8,
+  "still_wrong_after_snapping": 10,
+  "conclusion": "Nearest-option snapping only recovers points when the analysis is approximately-right-but-differently-formatted. None of this baseline's current failures fit that pattern -- all are genuinely-wrong values from a different methodology, which snapping cannot fix. Important correction to an earlier-session hypothesis that assumed near-miss values would be common."
+}
