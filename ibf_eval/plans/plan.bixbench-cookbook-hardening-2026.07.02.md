@@ -56,18 +56,35 @@ already in `env/requirements.txt`. This silently breaks RULE 12's mandatory inve
 for every capsule shipping a legacy `.xls` file -- a real, recurring BixBench file
 format (also seen in other TCGA-style capsules in the dataset).
 
-**Fix** (`eda.py`):
+**Fix** (`eda.py`) -- landed and verified; also handles a second real issue found while
+testing: some capsules ship plain-text/TSV data under a misleading `.xls` extension
+(not a real Excel binary at all -- confirmed on this exact capsule via `head`), which
+raises from the Excel engine rather than parsing. The engine-only fix alone was
+insufficient; needs a text-parsing fallback on Excel-engine failure:
 ```python
 def _read_table(path: Path, suffix: str) -> pd.DataFrame:
-    """Parse a tabular file into a DataFrame (delimiter sniffed for text)."""
+    """Parse a tabular file into a DataFrame (delimiter sniffed for text).
+
+    ``.xls``/``.xlsx`` need an explicit engine (pandas cannot auto-detect legacy
+    ``.xls`` vs ``.xlsx``) -- but some BixBench capsules ship plain-text/TSV data
+    under a misleading ``.xls`` extension, which raises from the Excel engine
+    rather than parsing. Fall back to delimited-text parsing in that case rather
+    than surfacing a false "unreadable".
+    """
     if suffix in (".parquet",):
         return pd.read_parquet(path)
-    if suffix == ".xlsx":
-        return pd.read_excel(path, engine="openpyxl")
-    if suffix == ".xls":
-        return pd.read_excel(path, engine="xlrd")
+    if suffix in (".xlsx", ".xls"):
+        engine = "openpyxl" if suffix == ".xlsx" else "xlrd"
+        try:
+            return pd.read_excel(path, engine=engine)
+        except Exception:  # noqa: BLE001 - genuinely not an Excel binary; try text
+            return pd.read_csv(path, sep=None, engine="python")
     return pd.read_csv(path, sep=None, engine="python")
 ```
+**Verified**: on the real `bix-42-q2` capsule (`COAD__geneExp.xls`,
+`COAD__methylation_450__TSS200-TSS1500.xls`, `clinical_patient_coad.xls` -- the latter
+two are genuinely mislabeled plain text, the geneExp one too), all three now parse
+correctly with shapes/columns/AXIS-warnings surfaced as intended. **STATUS: KEPT.**
 
 **Test** (`test_eda.py`): write a real `.xls` (via `pandas.DataFrame.to_excel(...,
 engine="xlrd" is write-incompatible -- use `openpyxl` to write `.xlsx` and separately
@@ -200,6 +217,40 @@ the default.
    constant (not `.format()`-templated, unlike `code_agent.md`), so no escaping is
    actually needed here, but verify `_build_system_prompt` still renders after the edit
    (no accidental brace introduced elsewhere).
+
+## Results (all 5 fixes + 1 newly-discovered fix, empirically tested)
+
+Re-ran the 30-question baseline's affected questions against the proxy harness after
+applying each fix. **Score: 13/30 (43.3%) -> 15/30 (50.0%)**, +2 questions flipped.
+
+| Fix | Motivating question | Before | After | Verdict |
+|---|---|---|---|---|
+| 1 (`.xls` engine + fallback) | bix-42-q2 | UNREADABLE (fixed via manual override in baseline) | parses correctly, auto | **KEPT** -- verified directly, no regression risk |
+| 2 (Chronos sign) | bix-16-q3 | 0 | **3** (exact match) | **KEPT -- CONFIRMED WIN** |
+| 3 (pre-normalized counts) | bix-3-q1 | 247 | 241 (target 700-1000) | KEPT (corrected a broken code snippet -- the original one-liner doesn't actually pin size factors in pydeseq2==0.5.4) but does **not** resolve the motivating case; root cause is something else |
+| 4 (qualitative distribution shape) | bix-36-q5 | "not normal" | "bell-shaped/Normal-like" | **KEPT -- CONFIRMED WIN** |
+| 5 (ortholog set scope) | bix-12-q4 | 1162.0 (target 6948.0) | 3480.0 after 3 revisions | KEPT as a well-justified general default (narrowed scope after a near-regression risk was caught before it shipped) but motivating case still unresolved -- likely a different issue (rank-sum convention?) |
+| **6 (NEW) multi-sheet Excel** | bix-3-q1 (discovered mid-retest) | 2nd sheet invisible to RULE 12 inventory | both sheets surfaced | **KEPT** -- confirmed on 5 capsules total; doesn't change scores here (capable agents had already self-corrected by manually opening the workbook) but removes wasted effort and a real robustness gap |
+
+**Process note**: Fix 5 went through 3 revisions based on empirical failures, each one informative:
+v1 (exclude partial-taxa) -> no change (1162.0) -> v2 (include >=2-taxa) -> 5408.0,
+closer but still short -> v3 (include >=3-taxa, excluding the mathematically-forced-
+zero 2-taxa case) -> 3480.0, still short but now using the sample composition
+(n=100/n=249) that matches 2 OTHER already-passing questions in this family. Final
+wording was narrowed to scope the >=3-taxa exclusion to parsimony-informative-sites
+specifically (mathematically forced) rather than all phylogenomic metrics, after
+realizing the broader wording risked regressing 4 already-passing tree-length-family
+questions (DVMC/tree-length/patristic-distance are well-defined even for 2-taxa trees).
+
+**Assessment**: the cheap, cookbook-level fix bucket identified from this baseline is
+now largely exhausted -- 2 clean wins, 2 technically-improved-but-insufficient, 1
+new robustness fix. The remaining 15 failures are predominantly the structural
+undocumented-analyst-methodology problem (11 of 17 original fails) or deeper
+misinterpretation (`bix-31-q1`), which did not yield to this style of fix in the
+cases directly tested (`bix-3-q1`, `bix-12-q4`) despite real, careful effort. Getting
+substantially higher likely needs either the previously-deprioritized architecture-
+level changes (model-tier bump, MCQ answer-representation policy) or a fresh,
+non-cookbook angle on the method-sensitivity problem, not more cookbook cards.
 
 ## Verification
 

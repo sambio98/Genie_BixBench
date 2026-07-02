@@ -366,18 +366,21 @@ nwk.write_text(run_tool("fasttree", "-lg", str(aln)).stdout)  # drop -lg / add -
 tree_length = float(run_tool("phykit", "total_tree_length", str(nwk)).stdout.strip())
 
 # Ortholog SET SCOPE for cross-group statistics (Mann-Whitney U, medians, ratios, etc.
-# across all orthologs in a group): use every ortholog with >=3 taxa. Exclude BOTH
-# single-taxon orthologs (no alignment possible at all) AND 2-taxa orthologs -- a
-# 2-sequence alignment can ONLY ever score 0% parsimony-informative (mathematically
-# guaranteed, not a real measurement) and is similarly degenerate for most other
-# per-ortholog phylogenomic stats (a "tree" with 2 leaves is a single branch), so
-# including 2-taxa orthologs adds constant/trivial values that dilute the real signal.
-# A 3-taxa ortholog DOES have genuine, non-trivial variation for these metrics and
-# should be included; only exclude on genuine undefinedness (<3 taxa), never merely
-# because a value "looks small." Silently restricting further to full-4-taxa orthologs
-# also shrinks and biases the sample. Sanity-check your sample size against the
-# statistic's bounds (e.g. Mann-Whitney U cannot exceed n1*n2) -- if the expected/target
-# value exceeds n1*n2 for your chosen subset, your subset is too small.
+# across all orthologs in a group): default to using EVERY ortholog that has the
+# artifact the metric needs (a .treefile for tree-length/treeness/DVMC/patristic-
+# distance/long-branch-score stats -- these are well-defined even for a 2-taxa tree,
+# a single branch with a real length, so do NOT exclude 2-taxa orthologs for tree-based
+# metrics). The one documented exception: parsimony-informative-sites is
+# MATHEMATICALLY GUARANTEED to be 0% for any alignment with <3 taxa (you cannot have 2
+# character states each occurring >=2 times with fewer than 3 sequences) -- for THIS
+# SPECIFIC metric only, restrict to >=3-taxa orthologs, since <3-taxa values are a
+# constant mathematical artifact, not a real measurement. Do not generalize this
+# exception to other metrics without first checking whether the metric is actually
+# degenerate at that taxon count. Never restrict further to full-4-taxa orthologs
+# "because partial ones look degenerate" without checking first -- that shrinks and
+# biases the sample when the metric doesn't require it. Sanity-check your sample size
+# against the statistic's bounds (e.g. Mann-Whitney U cannot exceed n1*n2) -- if the
+# expected/target value exceeds n1*n2 for your chosen subset, your subset is too small.
 
 # treeness / RCV -- DERIVE them with PhyKIT from a tree/alignment you already
 # have; they are NOT stored fields to grep for, and a metric you cannot compute
