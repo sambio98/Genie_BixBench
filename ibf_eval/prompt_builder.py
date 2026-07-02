@@ -280,6 +280,16 @@ coeff = [c for c in dds.varm["LFC"].columns if c != "Intercept"][-1]
 stats.lfc_shrink(coeff=coeff)  # apeGLM prior; pass coeff= NOT contrast=; p-values unchanged
 res = stats.results_df  # log2FoldChange column now holds the shrunk LFCs
 
+# If the ONLY count data on disk is already normalized (non-integer values -- check
+# with (counts_df % 1 != 0).any().any()), do NOT round and feed it to DeseqDataSet as
+# if raw: pydeseq2 re-normalizes internally, so feeding it pre-normalized data
+# double-normalizes and distorts the fitted dispersion, changing which genes pass
+# significance. Instead pass explicit unit size factors so pydeseq2 skips its own
+# normalization step:
+#   dds = DeseqDataSet(counts=counts_df.round().astype(int), metadata=meta_df, design="~condition")
+#   dds.obs["size_factors"] = 1.0  # counts are already normalized -- skip re-normalizing
+#   dds.deseq2()
+
 # Pre-computed R result tables (.rds / .RData): READ them, do NOT re-run R. A
 # DESeq2 results .rds is just a serialized data frame -- never report NA because
 # the table is in an R format. pyreadr returns an ordered dict; an unnamed .rds
@@ -321,6 +331,14 @@ gpro = GProfiler(return_dataframe=True)
 res = gpro.profile(organism="hsapiens", query=["TP53", "BRCA1", "EGFR"])
 print(res[["source", "name", "p_value"]].head())  # GO/KEGG/REAC terms
 
+# DepMap CRISPRGeneEffect.csv -- Chronos essentiality score SIGN CONVENTION.
+# A MORE NEGATIVE Chronos score means a gene is MORE essential (knocking it out is
+# more harmful to cell viability) -- the opposite of the intuitive "higher = more
+# essential" reading. If a question frames "essentiality" as a positive-scaled
+# quantity (e.g. "strong POSITIVE correlation between expression and essentiality"),
+# check whether you should negate the raw Chronos score before correlating -- the
+# question's intended sign convention isn't always the raw file's sign convention.
+
 # pysam -- read alignments / variants (BAM and VCF must be indexed for fetch)
 import pysam
 bam = pysam.AlignmentFile("aln.bam", "rb")
@@ -347,6 +365,16 @@ nwk.write_text(run_tool("fasttree", "-lg", str(aln)).stdout)  # drop -lg / add -
 # phykit single-input subcommands take the tree as a POSITIONAL arg (NOT -t):
 tree_length = float(run_tool("phykit", "total_tree_length", str(nwk)).stdout.strip())
 
+# Ortholog SET SCOPE for cross-group statistics (Mann-Whitney U, medians, ratios, etc.
+# across all orthologs in a group): use EVERY ortholog that has the artifact the metric
+# needs (a .treefile for tree-length/treeness/DVMC stats; an alignment for RCV/gap%
+# stats) -- do not restrict to orthologs present in ALL 4 taxa unless the SPECIFIC
+# metric you are computing is undefined/degenerate for a partial-taxa ortholog (e.g.
+# parsimony-informative-sites truly needs >=4 taxa to be non-trivial; tree-length/
+# treeness/DVMC are well-defined for a 3-taxa tree too and should include it).
+# Restricting to full-taxa orthologs when the metric doesn't require it silently
+# shrinks and reweights the sample.
+
 # treeness / RCV -- DERIVE them with PhyKIT from a tree/alignment you already
 # have; they are NOT stored fields to grep for, and a metric you cannot compute
 # is NA, never a fabricated median of unrelated numbers (a wrong number is worse
@@ -356,6 +384,16 @@ treeness = float(run_tool("phykit", "treeness", str(treefile)).stdout.strip())  
 rcv = float(run_tool("phykit", "relative_composition_variability", str(alignment)).stdout.strip())  # RCV takes the ALIGNMENT, not a tree
 # treeness is a proportion -> sanity_check_value flags an out-of-range fabrication (e.g. 228):
 flag = sanity_check_value(treeness, "proportion")
+
+# "Describe/characterize the SHAPE of a distribution" (e.g. skewed vs Normal vs
+# bimodal) wants a QUALITATIVE/visual read from descriptive statistics (skewness,
+# kurtosis, a histogram), NOT a formal normality hypothesis test. At large n (tens of
+# thousands+), Shapiro-Wilk / D'Agostino-Pearson / Kolmogorov-Smirnov reject normality
+# for almost ANY real dataset, however normal-looking, because their power grows with
+# sample size while detecting arbitrarily small deviations -- a formally-significant
+# rejection at n=100,000+ is not evidence the shape looks non-normal. Judge shape from
+# skewness (|skew| < ~0.5 reads as approximately symmetric/Normal-like), kurtosis, and
+# a plotted histogram -- not from a p-value.
 
 # EDA / analysis guards (pre-injected -- DO NOT import; call directly)
 # inventory_inputs(root): inspect every input file BEFORE analysing it.
