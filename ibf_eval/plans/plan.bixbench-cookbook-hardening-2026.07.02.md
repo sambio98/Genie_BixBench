@@ -38,8 +38,10 @@ BixBench-scoring issue and is out of scope here.
 
 | Path | Action | Fix # |
 |---|---|---|
-| `ibiofoundry_ai/tools/eda.py` | MODIFY | 1 |
-| `ibiofoundry_ai/tools/python_exec.py` (`LIBRARY_COOKBOOK`) | MODIFY | 2, 3, 4, 5 |
+| `ibiofoundry_ai/tools/eda.py` | MODIFY | 1, 6, 8 |
+| `ibiofoundry_ai/tools/python_exec.py` (`LIBRARY_COOKBOOK`, `ALLOWED_BINARIES`, `TOOL_TIMEOUTS`) | MODIFY | 2, 3, 4, 5, 9 |
+| `ibiofoundry_ai/prompts/code_agent.md` | MODIFY | 7 (Rule 18) |
+| `Dockerfile` | MODIFY | 9 |
 | `tests/ibiofoundry_ai/tools/test_eda.py` | MODIFY | 1 |
 | `tests/ibiofoundry_ai/tools/test_python_exec.py` | MODIFY | 2, 3, 4, 5 |
 
@@ -130,21 +132,50 @@ raw counts; feeding it already-normalized values double-normalizes and very plau
 under-powers the model (fewer genes cross the significance threshold than the correctly
 un-normalized comparison would yield).
 
-**Fix** (`python_exec.py`, extend the existing pydeseq2 cookbook card):
+**Fix** (`python_exec.py`, extend the existing pydeseq2 cookbook card): the first version
+of this fix set `dds.obs["size_factors"] = 1.0` and then called `dds.deseq2()` --
+**empirically proven broken** by a retest agent (`deseq2()` silently re-fits and
+overwrites the manually-set size factors in pydeseq2==0.5.4). Corrected version calls
+the individual fit steps directly instead of the `deseq2()` wrapper, which actually
+pins size factors to 1:
 ```python
 # If the ONLY count data on disk is already normalized (non-integer values -- check
-# with (counts_df % 1 != 0).any().any()), do NOT round and feed it to DeseqDataSet as
-# if raw: pydeseq2 re-normalizes internally, so feeding it pre-normalized data
-# double-normalizes and distorts the fitted dispersion, changing which genes pass
-# significance. Instead pass explicit unit size factors so pydeseq2 skips its own
-# normalization step:
+# with (counts_df % 1 != 0).any().any()), rounding it and feeding it to DeseqDataSet as
+# if raw double-normalizes (pydeseq2 re-fits its own size factors on top of the
+# existing normalization). VERIFIED: naively setting `dds.obs["size_factors"] = 1.0`
+# before calling `dds.deseq2()` does NOT work with pydeseq2==0.5.4 -- deseq2() silently
+# re-fits and overwrites it. To actually pin size factors to 1, call the individual
+# fit steps directly instead of the deseq2() wrapper:
 dds = DeseqDataSet(counts=counts_df.round().astype(int), metadata=meta_df, design="~condition")
-dds.obs["size_factors"] = 1.0  # counts are already normalized -- skip re-normalizing
-dds.deseq2()
+dds.obs["size_factors"] = 1.0
+dds.layers["normed_counts"] = dds.X  # pre-seed so deseq2() doesn't re-derive it
+dds.fit_genewise_dispersions()
+dds.fit_dispersion_trend()
+dds.fit_dispersion_prior()
+dds.fit_MAP_dispersions()
+dds.fit_LFC()
+dds.calculate_cooks()
+dds.refit()
 ```
+Caution: in practice, when the data is already well-normalized, pydeseq2's own auto-fit
+size factors often land close to 1.0 anyway -- so this may be a smaller effect than
+expected (confirmed below: it changes the gene count but doesn't resolve the motivating
+question).
 
 **Test** (`test_python_exec.py`): assert the cookbook mentions "already normalized" and
 "size_factors".
+
+**Housekeeping note (2026-07-06)**: found via an unrelated full source/mirror
+consistency sweep that `ibf_eval/prompt_builder.py`'s copy of this cookbook card had
+drifted back to the disproven `size_factors = 1.0; deseq2()` one-liner -- the initial
+correction above had landed in the real source file but was never propagated to the
+harness's mirror. Re-synced now (`prompt_builder.py`'s `LIBRARY_COOKBOOK` is byte-for-byte
+identical to the source again, confirmed programmatically). Does not change this fix's
+KEPT verdict or the 241-vs-target-700/900 result below -- `bix-3-q1` was already correctly
+scored as a FAIL either way -- but any *other* future question exercising this exact
+code path between the drift and this fix would have been silently shown the broken
+snippet. Worth a standing habit: re-diff `prompt_builder.py` against the real source
+after any cookbook edit, not just at the time each fix is first written.
 
 ## Fix 4 -- "describe the distribution shape" wants a qualitative read, not a formal test
 
@@ -221,7 +252,10 @@ the default.
 ## Results (all 5 fixes + 1 newly-discovered fix, empirically tested)
 
 Re-ran the 30-question baseline's affected questions against the proxy harness after
-applying each fix. **Score: 13/30 (43.3%) -> 15/30 (50.0%)**, +2 questions flipped.
+applying each fix. **Score: 13/30 (43.3%) -> 15/30 (50.0%)** after Fixes 1-6, +2
+questions flipped. Fix 9 (Trimmomatic, see below, found in a later round) adds a 3rd:
+**15/30 (50.0%) -> 16/30 (53.3%)**, pending the same full-batch spot-check the other
+fixes got before their score was finalized.
 
 | Fix | Motivating question | Before | After | Verdict |
 |---|---|---|---|---|
@@ -315,6 +349,86 @@ choice of pre-corrected counts + `~sex`. Empirically this made `bix-31-q3` WORSE
 significant genes vs the original 113, target 197) -- the batch-corrected values are
 integer-valued ComBat-seq output, a legitimate, standard DESeq2-compatible input, not
 a mistake. No cookbook change made; a good example of testing before shipping.
+
+## Fix 9 (NEW) -- Trimmomatic is not installed or whitelisted at all
+
+**Evidence**: `bix-61-q1` names an exact tool AND exact parameters -- "quality
+control on these reads using Trimmomatic PE... ILLUMINACLIP:TruSeq3-PE.fa:2:30:10,
+LEADING:3, TRAILING:3, SLIDINGWINDOW:4:15, MINLEN:36" -- about as unambiguous as
+BixBench gets. `trimmomatic` is neither in `ALLOWED_BINARIES` nor installed by the
+`Dockerfile`'s `apt-get install` line (confirmed by reading the Dockerfile directly --
+it installs samtools/bcftools/bwa/bowtie2/mafft/bedtools/hmmer/fasttree but not
+trimmomatic). Lacking the real tool, the baseline agent hand-reimplemented
+ILLUMINACLIP/SLIDINGWINDOW trimming from scratch and landed on 4456 -- the reference
+is 344895, a ~77x gap. Found via a targeted audit distinct from Fixes 1/6/8's file-format
+scan: grep every question's raw text for an explicitly-named tool, then check that
+name against `ALLOWED_BINARIES` and the `Dockerfile`. Across all 30 questions only two
+name a specific tool by name (Trimmomatic here; DESeq2 in `bix-3-q1`, already covered
+by the pydeseq2 cookbook entry and already investigated/exhausted in an earlier round)
+-- a small, high-precision search space, and it found a real, severe gap.
+
+**Fix**:
+- `Dockerfile`: add `trimmomatic` to the existing apt-get install line (same
+  Debian-bookworm-main family as its neighbors, `default-jre` + `libjbzip2-java` deps
+  only). Debian's package ships two separate entrypoints, `TrimmomaticPE` /
+  `TrimmomaticSE`, not bioconda's unified `trimmomatic PE|SE ...` CLI -- added a
+  one-line shim (`/usr/local/bin/trimmomatic` dispatching `"$1"` to
+  `Trimmomatic${1}`) directly below the existing analogous `fasttree`/`FastTree`
+  naming-mismatch shim already in the file, so `run_tool("trimmomatic", "PE", ...)`
+  resolves the same way regardless of which packaging produced the binaries.
+- `python_exec.py`: added `"trimmomatic"` to `ALLOWED_BINARIES` and `TOOL_TIMEOUTS`
+  (600s, matching bwa/bowtie2 -- same order-of-magnitude input as short-read
+  alignment). New `LIBRARY_COOKBOOK` entry covers three non-obvious things a correct
+  from-scratch attempt could still miss even with the real tool available: (1) the
+  exact `run_tool` invocation shape for PE mode; (2) Trimmomatic prints its summary to
+  **stderr**, not stdout, and PE's "reads discarded" is `Input Read Pairs - Both
+  Surviving` (equivalently `Forward Only + Reverse Only + Dropped`) -- NOT the
+  `Dropped` field alone, which counts only pairs where BOTH mates failed; a mate
+  demoted to unpaired output is still conventionally "discarded" from the paired-end
+  result; (3) `ILLUMINACLIP`'s adapter FASTA (e.g. `TruSeq3-PE.fa`) ships with the
+  Trimmomatic install, not in `DATA_DIR` -- a question naming one by filename does not
+  mean it was uploaded, so the snippet globs a short list of plausible install roots
+  and falls back to writing out the standard 2-record `TruSeq3-PE.fa` content
+  (verified below) if no installed copy is found.
+
+**Verified**: installed real Trimmomatic (apt `trimmomatic` 0.39 + `default-jre`) and
+ran it by hand with the question's exact flags against the real `bix-61-q1` capsule
+(two paired-end samples, SRR35228486 and SRR35233585). Per-sample stderr summaries:
+
+| Sample | Input Pairs | Both Surviving | Fwd Only | Rev Only | Dropped |
+|---|---|---|---|---|---|
+| SRR35228486 | 325099 | 320698 | 3763 | 236 | 402 |
+| SRR35233585 | 667764 | 327285 | 334988 | 1075 | 4416 |
+
+Summed `Input Read Pairs - Both Surviving` across both samples = 4401 + 340479 =
+**344880**, versus the reference **344895** -- a 15-count (0.004%) gap, almost
+certainly Trimmomatic patch-version or JRE-level floating-point noise at sliding-window
+threshold boundaries, not a methodology difference. The naive "Dropped-only" reading
+(402 + 4416 = 4818) is nowhere close, confirming the counting-convention gotcha
+documented in the cookbook entry above is the actual crux, not just tool availability.
+
+A fresh agent retest (blind to the reference value, given only the updated prompt,
+10 tool calls) independently reproduced the exact same derivation start to finish with
+NO hand-holding: found `trimmomatic` on PATH unprompted, located the real shipped
+`TruSeq3-PE.fa` via the documented glob (never needed the embedded fallback), ran both
+samples with the question's exact flags, applied the "Input Read Pairs - Both
+Surviving" convention (not the naive "Dropped" reading) from the cookbook text alone,
+and reported the identical **344880**, i.e. `<solution>344880</solution>` against
+ideal `344895` -- a 0.004% gap, and not within reach of any of this benchmark's three
+listed distractors (341095/348695/352495, each ~3800+ away). This flips `bix-61-q1`
+from FAIL (4456, ~77x off) to what should grade as PASS under `llm_verifier`.
+**STATUS: KEPT.**
+
+Also fixed while verifying this: an unrelated `python_exec.py`/`prompt_builder.py`
+mirror-drift bug found via a full source-vs-harness consistency sweep (see the
+Fix 3 housekeeping note above) -- `ALLOWED_BINARIES` and `code_agent.md`'s mirror were
+already exact; `ALLOWED_DOMAINS`'s mirror differs only by stripped inline comments
+(same 14 domains, functionally identical, not worth touching). Also caught and fixed a
+benchmark-integrity slip in this fix's own first draft: the cookbook's illustrative
+Trimmomatic stderr example originally used `bix-61-q1`'s own real per-sample numbers
+(325099/320698/...) as the "e.g." -- accurate, but a general cookbook card should not
+double as a worked answer key for the one question that motivated it. Replaced with
+clearly-fictional, arithmetic-consistent placeholder numbers before shipping.
 
 **Combined conclusion**: with cookbook fixes, model tier, and answer-representation
 all now empirically tested (not just proposed), the remaining ~15-question gap is

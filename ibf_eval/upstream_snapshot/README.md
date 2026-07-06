@@ -21,9 +21,12 @@ They exist here for two reasons:
    | `ibiofoundry_ai/tools/eda.py` | `ibiofoundry_ai/tools/eda.py` |
    | `ibiofoundry_ai/tools/python_exec.py` | `ibiofoundry_ai/tools/python_exec.py` |
    | `ibiofoundry_ai/prompts/code_agent.md` | `ibiofoundry_ai/prompts/code_agent.md` |
+   | `Dockerfile` | `Dockerfile` |
 
 `python_exec.py` and `code_agent.md`'s changes (Fixes 2-5, Rule 18) are *also*
 mirrored as literal Python strings in `ibf_eval/prompt_builder.py` so the
-harness can run without this directory; `eda.py` is not, so for that file this
-snapshot is the only complete, durable copy. Re-sync this directory (`cp` the
-three files + re-run `diff -q` to confirm) any time `/tmp/ibf`'s copies change.
+harness can run without this directory; `eda.py` and `Dockerfile` are not
+(there is nothing to "mirror" for a Dockerfile -- the harness sandbox has the
+tool pre-installed a different way), so for those two files this snapshot is
+the only complete, durable copy. Re-sync this directory (`cp` the four files +
+re-run `diff -q` to confirm) any time `/tmp/ibf`'s copies change.

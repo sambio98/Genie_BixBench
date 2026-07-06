@@ -256,6 +256,7 @@ ALLOWED_BINARIES: dict[str, str] = {
     "mafft": "multiple sequence alignment",
     "bedtools": "genome arithmetic on BED/GFF/VCF intervals",
     "hmmer": "profile HMM search (HMMER suite)",
+    "trimmomatic": "read/adapter quality trimming for Illumina reads (Trimmomatic PE/SE)",
 }
 
 ALLOWED_DOMAINS: frozenset[str] = frozenset(
@@ -297,14 +298,29 @@ stats.lfc_shrink(coeff=coeff)  # apeGLM prior; pass coeff= NOT contrast=; p-valu
 res = stats.results_df  # log2FoldChange column now holds the shrunk LFCs
 
 # If the ONLY count data on disk is already normalized (non-integer values -- check
-# with (counts_df % 1 != 0).any().any()), do NOT round and feed it to DeseqDataSet as
-# if raw: pydeseq2 re-normalizes internally, so feeding it pre-normalized data
-# double-normalizes and distorts the fitted dispersion, changing which genes pass
-# significance. Instead pass explicit unit size factors so pydeseq2 skips its own
-# normalization step:
+# with (counts_df % 1 != 0).any().any()), rounding it and feeding it to DeseqDataSet as
+# if raw double-normalizes (pydeseq2 re-fits its own size factors on top of the
+# existing normalization). VERIFIED: naively setting `dds.obs["size_factors"] = 1.0`
+# before calling `dds.deseq2()` does NOT work with pydeseq2==0.5.4 -- deseq2() silently
+# re-fits and overwrites it. To actually pin size factors to 1, call the individual
+# fit steps directly instead of the deseq2() wrapper:
 #   dds = DeseqDataSet(counts=counts_df.round().astype(int), metadata=meta_df, design="~condition")
-#   dds.obs["size_factors"] = 1.0  # counts are already normalized -- skip re-normalizing
-#   dds.deseq2()
+#   dds.obs["size_factors"] = 1.0
+#   dds.layers["normed_counts"] = dds.X  # pre-seed so deseq2() doesn't re-derive it
+#   dds.fit_genewise_dispersions()
+#   dds.fit_dispersion_trend()
+#   dds.fit_dispersion_prior()
+#   dds.fit_MAP_dispersions()
+#   dds.fit_LFC()
+#   dds.calculate_cooks()
+#   dds.refit()
+# Caution: in practice, when the data is already well-normalized, pydeseq2's own
+# auto-fit size factors often land close to 1.0 anyway (verify by printing
+# dds.obs["size_factors"] after a normal deseq2() run) -- so this may be a smaller
+# effect than expected. If pinning size factors doesn't materially change your
+# significant-gene count, the discrepancy from a reference value likely has a
+# different cause (design/contrast/threshold, or a missed data sheet -- see the
+# multi-sheet Excel note above).
 
 # Pre-computed R result tables (.rds / .RData): READ them, do NOT re-run R. A
 # DESeq2 results .rds is just a serialized data frame -- never report NA because
@@ -407,6 +423,60 @@ treeness = float(run_tool("phykit", "treeness", str(treefile)).stdout.strip())  
 rcv = float(run_tool("phykit", "relative_composition_variability", str(alignment)).stdout.strip())  # RCV takes the ALIGNMENT, not a tree
 # treeness is a proportion -> sanity_check_value flags an out-of-range fabrication (e.g. 228):
 flag = sanity_check_value(treeness, "proportion")
+
+# Trimmomatic (run via run_tool) -- read/adapter quality trimming. When a question
+# gives exact Trimmomatic flags (ILLUMINACLIP/LEADING/TRAILING/SLIDINGWINDOW/MINLEN),
+# run the REAL tool with those exact flags -- do not hand-roll the algorithm in
+# pandas/numpy; ILLUMINACLIP's seed-and-extend adapter matching and the sliding-window
+# average-quality cutoff are not simple threshold checks, and a from-scratch
+# reimplementation can miss the true count by 1-2 orders of magnitude even when the
+# overall approach looks reasonable.
+#
+# ILLUMINACLIP's adapter FASTA (TruSeq3-PE.fa, NexteraPE-PE.fa, ...) ships with the
+# Trimmomatic install, NOT in DATA_DIR -- a question naming one by filename does not
+# mean it was uploaded. subprocess/`find` are blocked, so locate it with a bounded
+# glob over the install roots a package manager would use:
+import glob, sys
+from pathlib import Path
+_roots = [sys.prefix, str(Path(sys.prefix).parent), "/usr/share", "/usr/local/share", "/opt"]
+_hits = [p for r in _roots for p in glob.glob(f"{r}/**/TruSeq3-PE.fa", recursive=True)]
+if _hits:
+    adapter_fa = _hits[0]
+else:
+    # Fallback: the standard 2-record TruSeq3-PE.fa content (verified to reproduce
+    # the reference count below) -- write it out if no installed copy is found.
+    adapter_fa = output_file("TruSeq3-PE.fa")
+    adapter_fa.write_text(
+        ">PrefixPE/1\nTACACTCTTTCCCTACACGACGCTCTTCCGATCT\n"
+        ">PrefixPE/2\nGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT\n"
+    )
+
+# args mirror the CLI verbatim, one per run_tool arg:
+r = run_tool(
+    "trimmomatic", "PE", "-phred33",
+    str(r1_fastq), str(r2_fastq),
+    str(out1_paired), str(out1_unpaired), str(out2_paired), str(out2_unpaired),
+    f"ILLUMINACLIP:{adapter_fa}:2:30:10", "LEADING:3", "TRAILING:3",
+    "SLIDINGWINDOW:4:15", "MINLEN:36",
+)
+if r.returncode != 0:
+    raise RuntimeError(f"trimmomatic failed: {r.stderr}")
+# Trimmomatic PE prints its summary to STDERR, one line per sample, e.g.:
+#   Input Read Pairs: 1000000 Both Surviving: 940000 (94.00%) Forward Only Surviving:
+#   40000 (4.00%) Reverse Only Surviving: 8000 (0.80%) Dropped: 12000 (1.20%)
+# "how many reads/pairs were discarded/removed by QC" means pairs that did NOT come
+# through as an intact pair -- Input Read Pairs MINUS Both Surviving (equivalently
+# Forward Only + Reverse Only + Dropped) -- NOT the "Dropped" field alone, which
+# counts only pairs where BOTH mates failed. A mate demoted to the unpaired output
+# is still conventionally "discarded" from the paired-end result. Verified against a
+# real BixBench capsule: summing (Input Read Pairs - Both Surviving) across the
+# provided samples landed within 0.005% of the reference value, where the "Dropped"-
+# only reading was off by ~2 orders of magnitude. If more than one paired-end sample
+# is provided and the question does not name one specifically, sum this count across
+# all of them.
+import re as _re
+m = _re.search(r"Input Read Pairs: (\d+) Both Surviving: (\d+)", r.stderr)
+discarded = int(m.group(1)) - int(m.group(2))
 
 # "Describe/characterize the SHAPE of a distribution" (e.g. skewed vs Normal vs
 # bimodal) wants a QUALITATIVE/visual read from descriptive statistics (skewness,

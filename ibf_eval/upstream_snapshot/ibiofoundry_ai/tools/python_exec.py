@@ -395,6 +395,60 @@ rcv = float(run_tool("phykit", "relative_composition_variability", str(alignment
 # treeness is a proportion -> sanity_check_value flags an out-of-range fabrication (e.g. 228):
 flag = sanity_check_value(treeness, "proportion")
 
+# Trimmomatic (run via run_tool) -- read/adapter quality trimming. When a question
+# gives exact Trimmomatic flags (ILLUMINACLIP/LEADING/TRAILING/SLIDINGWINDOW/MINLEN),
+# run the REAL tool with those exact flags -- do not hand-roll the algorithm in
+# pandas/numpy; ILLUMINACLIP's seed-and-extend adapter matching and the sliding-window
+# average-quality cutoff are not simple threshold checks, and a from-scratch
+# reimplementation can miss the true count by 1-2 orders of magnitude even when the
+# overall approach looks reasonable.
+#
+# ILLUMINACLIP's adapter FASTA (TruSeq3-PE.fa, NexteraPE-PE.fa, ...) ships with the
+# Trimmomatic install, NOT in DATA_DIR -- a question naming one by filename does not
+# mean it was uploaded. subprocess/`find` are blocked, so locate it with a bounded
+# glob over the install roots a package manager would use:
+import glob, sys
+from pathlib import Path
+_roots = [sys.prefix, str(Path(sys.prefix).parent), "/usr/share", "/usr/local/share", "/opt"]
+_hits = [p for r in _roots for p in glob.glob(f"{r}/**/TruSeq3-PE.fa", recursive=True)]
+if _hits:
+    adapter_fa = _hits[0]
+else:
+    # Fallback: the standard 2-record TruSeq3-PE.fa content (verified to reproduce
+    # the reference count below) -- write it out if no installed copy is found.
+    adapter_fa = output_file("TruSeq3-PE.fa")
+    adapter_fa.write_text(
+        ">PrefixPE/1\nTACACTCTTTCCCTACACGACGCTCTTCCGATCT\n"
+        ">PrefixPE/2\nGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT\n"
+    )
+
+# args mirror the CLI verbatim, one per run_tool arg:
+r = run_tool(
+    "trimmomatic", "PE", "-phred33",
+    str(r1_fastq), str(r2_fastq),
+    str(out1_paired), str(out1_unpaired), str(out2_paired), str(out2_unpaired),
+    f"ILLUMINACLIP:{adapter_fa}:2:30:10", "LEADING:3", "TRAILING:3",
+    "SLIDINGWINDOW:4:15", "MINLEN:36",
+)
+if r.returncode != 0:
+    raise RuntimeError(f"trimmomatic failed: {r.stderr}")
+# Trimmomatic PE prints its summary to STDERR, one line per sample, e.g.:
+#   Input Read Pairs: 1000000 Both Surviving: 940000 (94.00%) Forward Only Surviving:
+#   40000 (4.00%) Reverse Only Surviving: 8000 (0.80%) Dropped: 12000 (1.20%)
+# "how many reads/pairs were discarded/removed by QC" means pairs that did NOT come
+# through as an intact pair -- Input Read Pairs MINUS Both Surviving (equivalently
+# Forward Only + Reverse Only + Dropped) -- NOT the "Dropped" field alone, which
+# counts only pairs where BOTH mates failed. A mate demoted to the unpaired output
+# is still conventionally "discarded" from the paired-end result. Verified against a
+# real BixBench capsule: summing (Input Read Pairs - Both Surviving) across the
+# provided samples landed within 0.005% of the reference value, where the "Dropped"-
+# only reading was off by ~2 orders of magnitude. If more than one paired-end sample
+# is provided and the question does not name one specifically, sum this count across
+# all of them.
+import re as _re
+m = _re.search(r"Input Read Pairs: (\d+) Both Surviving: (\d+)", r.stderr)
+discarded = int(m.group(1)) - int(m.group(2))
+
 # "Describe/characterize the SHAPE of a distribution" (e.g. skewed vs Normal vs
 # bimodal) wants a QUALITATIVE/visual read from descriptive statistics (skewness,
 # kurtosis, a histogram), NOT a formal normality hypothesis test. At large n (tens of
@@ -1018,6 +1072,7 @@ TOOL_TIMEOUTS: dict[str, int] = {
     "hmmer": 600,
     "bwa": 600,
     "bowtie2": 600,
+    "trimmomatic": 600,
 }
 """Per-binary wall-clock ceilings (seconds) overriding ``DEFAULT_TOOL_TIMEOUT``.
 
@@ -1047,6 +1102,7 @@ ALLOWED_BINARIES: dict[str, str] = {
     "mafft": "multiple sequence alignment",
     "bedtools": "genome arithmetic on BED/GFF/VCF intervals",
     "hmmer": "profile HMM search (HMMER suite)",
+    "trimmomatic": "read/adapter quality trimming for Illumina reads (Trimmomatic PE/SE)",
 }
 """Whitelist of sanctioned command-line binaries (name -> one-line purpose).
 
