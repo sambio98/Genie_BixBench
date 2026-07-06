@@ -336,5 +336,26 @@ recognize when it selected a "more sophisticated" or "more rigorous-seeming" opt
 over the plain default for an unspecified step, and to redo with the default unless
 it has a concrete, stated reason the default is wrong for this data.
 
-**Testing in progress**: bix-27-q2 (strict-threshold hypothesis), bix-36-q4
-(mean-vs-median aggregation hypothesis).
+**Results**: mixed, no confirmed win, but real signal.
+- `bix-27-q2`: 42 -> **215** (target 160-180). Major improvement: the agent replaced
+  its original ad hoc "100% agreement across all appearances" heuristic with proper
+  textbook consensus clustering (Monti et al. pairwise co-association matrices,
+  Hungarian-algorithm cluster alignment), validated across 4 robustness variants all
+  converging to 212-218. Overshoots the target but is far closer and far more
+  methodologically defensible than before.
+- `bix-36-q4`: 0.194 -> **6.28e-24** (target 0.55-0.59). Regressed: the agent's
+  "more textbook" choice (gene-level ANOVA across all 827 filtered miRNA genes,
+  reasoning this was more standard than per-sample aggregation) has far more
+  statistical power than the original approach, producing an extremely significant
+  p-value against a target that is NOT significant. Neither this nor the original
+  approach is clearly correct; the true reference method is likely something else
+  entirely (e.g. a different test, different grouping).
+
+**STATUS: KEPT**, on the same basis as Fixes 3 and 5 (sound reasoning, a real
+improvement in at least one case, no demonstrated regression on any previously-
+passing question, purely additive prompt text) -- but explicitly NOT a confirmed
+win like Fixes 2/4/6. This is a general principle with mixed, case-dependent
+results: it seems to help most when the agent's original choice was an ad hoc
+heuristic with no real statistical grounding (bix-27-q2), and can hurt when
+"more standard" also means "more statistical power," which is a different axis
+than correctness (bix-36-q4).
