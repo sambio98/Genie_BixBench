@@ -276,6 +276,46 @@ answer-formatting trick can help. The lever is still valid in principle (and che
 enough to keep as a formatting safety net for future near-misses), but it is not
 the lever that moves this specific baseline's score.
 
+## Fix 8 (NEW) -- oversized files skip RULE 12's inventory entirely
+
+**Evidence**: DepMap's `CRISPRGeneEffect.csv` (408 MB) and
+`OmicsExpressionProteinCodingGenesTPMLogp1BatchCorrected.csv` (587 MB) -- used by
+`bix-16-q2`/`q3`/`q4` -- both exceed `MAX_INVENTORY_BYTES` (200 MB), so
+`inventory_inputs` skipped them entirely with "file too large to inventory; inspect
+manually", giving RULE 12's mandatory pre-analysis inventory zero information: no
+column names, no shape, nothing. This is silent for capable agents that self-correct
+(all 3 DepMap questions already pass in the baseline) but forces expensive manual
+re-discovery every time, and would not self-correct for a less careful agent. Found
+via a systematic scan of all 30 capsules for silent inventory failures (the same
+method that found Fixes 1 and 6) -- notably, this scan also confirmed all OTHER
+tabular files across all 30 capsules parse cleanly with a bounded read, so there are
+no further silent parsing bugs at this time.
+
+**Fix** (`eda.py`): replace the all-or-nothing skip with a bounded preview -- read
+only `_PREVIEW_NROWS=5` data rows (pandas stops immediately regardless of file size)
+for real column names/dtypes, and get the true row count via `_fast_line_count`, a
+byte-level newline count that streams the file in fixed-size chunks (O(1) memory)
+instead of loading it as a DataFrame. A new `FileInventory.preview_note` field
+(deliberately separate from `read_error`, which `summary()` treats as "print nothing
+else") carries the "this is a preview, not a full read" caveat alongside the real
+shape/columns, and reminds the agent to load only what it needs (`usecols=`,
+`nrows=`, `chunksize=`) rather than the whole file.
+
+**Verified**: on the real DepMap capsule, both files now surface real shapes
+(1178×17917 and 1673×19139) and real column samples (revealing the file's
+`GENE_SYMBOL (ENTREZID)` column-naming convention -- useful for downstream ID
+matching) in 71s total for ~1GB of file, versus zero information before.
+**STATUS: KEPT.**
+
+**Also tested this round, found NOT to help (documented so it isn't re-tried)**:
+for `bix-31-q1`/`bix-31-q3` (the only capsules shipping both `RawReadCounts_Zenodo.csv`
+and `BatchCorrectedReadCounts_Zenodo.csv`), hypothesized that pydeseq2 should prefer
+raw counts + an explicit `~batch+sex` design covariate over the agent's original
+choice of pre-corrected counts + `~sex`. Empirically this made `bix-31-q3` WORSE (83
+significant genes vs the original 113, target 197) -- the batch-corrected values are
+integer-valued ComBat-seq output, a legitimate, standard DESeq2-compatible input, not
+a mistake. No cookbook change made; a good example of testing before shipping.
+
 **Combined conclusion**: with cookbook fixes, model tier, and answer-representation
 all now empirically tested (not just proposed), the remaining ~15-question gap is
 the benchmark's core reproducibility problem -- the ground truth encodes one
