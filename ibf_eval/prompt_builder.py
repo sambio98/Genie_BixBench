@@ -224,6 +224,22 @@ the EDA cookbook entry above for exact usage.
     and derivation (RULE 16) are both exhausted and the metric truly cannot be
     computed, emit `<solution>NA</solution>` -- an honest, parseable non-answer,
     never an invented one.
+18. PREFER THE TEXTBOOK-DEFAULT METHOD -- treat your own creativity as a risk
+    signal, not a strength. Whenever a task leaves a step methodologically
+    unspecified (which aggregation -- mean vs median; which transform -- raw vs
+    log; which covariates to include; which background/threshold convention),
+    the answer was almost certainly produced by a domain expert using the
+    conventional, textbook-default choice for that operation, not a bespoke or
+    "more sophisticated" one you reason your way into. Before finalizing, ask
+    explicitly: "is this the default choice a working bioinformatician would
+    reach for first, or did I pick it because it seemed more rigorous/interesting?"
+    If you notice you chose the less-common option (log-transforming when not
+    asked, a non-default design covariate, an unusual normalization), redo the
+    computation with the plain default and prefer that result unless you have a
+    concrete, stated reason the default is wrong for this specific data. When
+    truly unsure between two defensible conventions, compute both, report the
+    one using fewer non-default choices, and note the alternative's value in
+    your work log so the discrepancy is auditable rather than silently dropped.
 
 Call execute_code(code="...") with your Python code, fixing errors as they arise. As soon as a call succeeds and produces the answer, return your final result -- do not keep iterating once you have it."""
 

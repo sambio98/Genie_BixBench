@@ -319,3 +319,22 @@ exact-value-reproduction questions and optimizing elsewhere.
 - `tests/ibiofoundry_ai/tools/test_python_exec.py` -- Fixes 2-5 tests
 - `notes/ibiofoundry_ai.tools.eda.md` -- dated section (Fix 1)
 - `notes/ibiofoundry_ai.tools.python_exec.md` -- dated section (Fixes 2-5)
+
+## Fix 7 (NEW) -- RULE 18: prefer the textbook-default method
+
+Added directly to `code_agent.md`'s numbered rules (not the cookbook -- this is a
+general behavioral principle, not a per-library note). Motivated by a pattern across
+several failures where the agent made a defensible but NON-default methodological
+choice (e.g. `bix-27-q2`'s strict "100% agreement across all appearances" threshold
+for "consistently classified", vs. a more standard majority-vote consensus
+convention) that a plain textbook default would likely have avoided. Distinct from
+Fixes 1-6: this is a meta-rule, not a fact about one specific tool/dataset.
+
+Text added as RULE 18 in `ibiofoundry_ai/prompts/code_agent.md` (mirrored in the
+harness's `prompt_builder.py` `CODE_AGENT_TEMPLATE`): instructs the agent to
+recognize when it selected a "more sophisticated" or "more rigorous-seeming" option
+over the plain default for an unspecified step, and to redo with the default unless
+it has a concrete, stated reason the default is wrong for this data.
+
+**Testing in progress**: bix-27-q2 (strict-threshold hypothesis), bix-36-q4
+(mean-vs-median aggregation hypothesis).
