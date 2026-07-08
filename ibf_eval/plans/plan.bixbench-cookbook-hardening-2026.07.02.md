@@ -430,6 +430,49 @@ Trimmomatic stderr example originally used `bix-61-q1`'s own real per-sample num
 double as a worked answer key for the one question that motivated it. Replaced with
 clearly-fictional, arithmetic-consistent placeholder numbers before shipping.
 
+## bix-12-q4 revisited -- a suspicious ~2x ratio, chased and not explained
+
+**Motivation**: `bix-12-q4` ("Mann-Whitney U comparing parsimony-informative-site
+percentages between animals and fungi", ideal `6948.0`) was left unresolved by Fix 5
+at `3480.0`. `6948 / 3480 = 1.9966` -- close enough to exactly 2x to be a real
+mechanism signature worth chasing rather than noise, especially since the three
+listed distractors (4532/5891/7823) all sit in the same 4500-7800 range, meaning
+the correct comparison scale (n1~100 x n2~249) is almost certainly right and the
+gap is a specific methodological choice, not a wrong-ballpark answer.
+
+**Investigation**: reused the real per-ortholog PIS-percentage values already computed
+and saved from the Fix 5 retest (`output_v4/{animals,fungi}_parsimony_informative_sites.tsv`,
+n1=100/n2=249, matching Fix 5's final `>=3-taxa` sample) rather than re-deriving from
+scratch, and tested every mechanism that could plausibly produce a ~2x shift on the
+SAME underlying data:
+
+| Hypothesis | Result | vs. target 6948.0 |
+|---|---|---|
+| Reported value (animals vs fungi, standard MWU) | 3480.0 | baseline |
+| Complementary U (fungi vs animals; U1+U2=n1n2=24900) | 21420.0 | not 2x, ruled out |
+| `alternative=` two-sided/greater/less | 3480.0 (unchanged) | scipy doesn't vary the statistic by this param |
+| Paired Wilcoxon signed-rank on the 96 ortholog IDs shared between both sets | 58.0 | far off -- overlap is a BUSCO/OrthoDB naming artifact (both groups draw from the same `eukaryota_odb10` lineage set), not evidence of a paired design |
+| MWU on raw `pis_count` instead of `pis_pct` | 3280.0 | close to but not 3480/6948 |
+| Restrict to full-4-taxa orthologs only (22 vs 211) | 1162.0 | exactly reproduces Fix 5's original v1 -- confirms empirically that in THIS dataset every <4-taxa ortholog has `pis_pct==0`, so ">=3 taxa" and ">=4 taxa" filters differ only in how many zero-tied entries get included, not in which orthologs carry real signal |
+| Exclude exact-zero `pis_pct` from both groups | 1162.0 | identical to full-4-taxa-only, confirming the above |
+| Exclude zeros from animals only (asymmetric) | 1998.0 | no |
+| Manual tie decomposition: 1996 strict wins, 19936 strict losses, 2968 exact ties (2964 of them zero-zero) | -- | -- |
+| Ties credited as full win instead of standard half-credit | 4964.0 | closer, still off by ~2000 |
+| Ties credited as full loss instead of half-credit | 1996.0 | no |
+
+**Outcome**: none of the eight reinterpretations of the same underlying data reproduce
+6948.0 or a clean multiple of it. This maps out essentially the full space of "same
+per-ortholog PIS values, different aggregation/subsetting/tie-convention" -- so this
+specific 2x hunch, while a reasonable and worthwhile thing to check (and now
+definitively ruled out rather than left as an open guess), does not resolve to a
+findable mechanism from the artifacts already on disk. Closing this for real would
+require re-deriving the per-ortholog PIS values with a different tool/alignment
+methodology entirely -- a materially bigger and less certain investment than anything
+else in this plan -- which is itself informative: it's a second, independent data
+point (alongside Fixes 3, 5, 7) that the remaining gap is dominated by genuine
+methodological divergence from the reference, not a slicing choice one more clever
+pass over the same numbers will find. No cookbook change made.
+
 **Combined conclusion**: with cookbook fixes, model tier, and answer-representation
 all now empirically tested (not just proposed), the remaining ~15-question gap is
 the benchmark's core reproducibility problem -- the ground truth encodes one
